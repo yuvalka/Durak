@@ -8,7 +8,9 @@ var bodyParser = require('body-parser');
 var routes = require('./routes/index');
 var users = require('./routes/users');
 var durak = require('./sources/durak');
-var db = require('./sources/db');
+
+// uncomment when using db
+//var db = require('./sources/db')('mongodb://localhost:27017/durak');
 
 var app = express();
 
@@ -24,6 +26,22 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(require('less-middleware')(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.locals.site = {
+    title: "WiseDurak"
+};
+
+if (app.get('env') === 'development') {
+    app.locals.pretty = true;
+}
+
+// uncomment when using db
+/*app.use(function(req, res, next) {
+    res.locals = res.locals || {};
+    res.locals.page = Math.max((parseInt(req.query.page || 0) || 1) - 1, 0);
+    req.db = db;
+    return next();
+});*/
 
 app.use('/', routes);
 app.use('/users', users);
