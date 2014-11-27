@@ -4,21 +4,20 @@
 
 
 /**
- *  basic Durak configuration
+ *  basic configs
  */
 var DurakConfig = (function() {
-    var private = {
+    var props = {
         'USER_STATUS_ATTACKER': 'attacker',
         'USER_STATUS_DEFENDER': 'defender',
-        'USER_STATUS_HOLD': 'hold',
-        'MAX_BOARD_CARDS_ATTACK': 6,
-        'MAX_BOARD_CARDS_ATTACK_BEFORE_FIRST_BITA': 5
+        'USER_STATUS_HOLD': 'hold'
+
     };
 
-    var cardPriority = {2:1,3:2,4:3,5:4,6:5,7:6,8:7,9:8,10:9,'J':10,'Q':11,'K':12,'A':13}
+    var cardPriority = {2:1,3:2,4:3,5:4,6:5,7:6,8:7,9:8,10:9,'J':10,'Q':11,'K':12,'A':13};
 
     return {
-        get: function(name) { return private[name]; },
+        get: function(name) { return props[name]; },
         cardPriority: function(CardNum) { return cardPriority[CardNum]}
     };
 })();
@@ -50,7 +49,7 @@ function Package(lowest_card) {
         lowest_card = 6;
     }
 
-    for (card_num = lowest_card; card_num < 11; card_num++) {
+    for (var card_num = lowest_card; card_num < 11; card_num++) {
         this.possible_cards.push(card_num);
     }
 
@@ -71,18 +70,29 @@ function Package(lowest_card) {
        }
 
        this.shuffle();
-    }
+    };
 
 
     this.shuffle = function() {
         if (!this.is_shuffled) {
-            for(var j, x, i = this.cards.length; i;j = Math.floor(Math.random() * i),
-            x = this.cards[--i], this.cards[i] = this.cards[j],
-            this.cards[j] = x);
+            var i = this.cards.length, tempVal, randI;
 
+            // While there remain elements to shuffle...
+            while (0 !== i) {
+
+                // Pick a remaining element...
+                randI = Math.floor(Math.random() * i);
+                i -= 1;
+
+                // And swap it with the current element.
+                tempVal = this.cards[i];
+                this.cards[i] = this.cards[randI];
+                this.cards[randI] = tempVal;
+            }
             this.is_shuffled = true;
+            return this.cards;
         }
-    }
+    };
 
     this.draft = function(num_cards,player){
         if (this.cards.length < num_cards ){
@@ -93,7 +103,7 @@ function Package(lowest_card) {
             card.holder = player.name;
             player.cards.push(card);
         });
-    }
+    };
 
     this.selectKozar = function(){
         console.log('selecting kozar');
@@ -101,7 +111,7 @@ function Package(lowest_card) {
         console.log(kozar);
         this.cards.push(this.cards.splice(0,1)[0]);
         return kozar.shape;
-    }
+    };
 }
 
 function Player(name) {
@@ -150,14 +160,14 @@ function Game() {
     this.init = function() {
         var game = this;
         this.players.forEach(function(player) {
-            game.package.draft(DurakConfig.get('MAX_BOARD_CARDS_ATTACK'),player);
+            game.package.draft(6,player);
         });
 
         game.kozar = game.package.selectKozar();
         this.board = new Board;
         game.attacker = this.players[0];
         game.defender = this.players[1];
-    }
+    };
 
 
     this.findAndUpdatePlayerKey = function(name, params) {
@@ -167,19 +177,18 @@ function Game() {
                 player[key] = params[key];
             }
         }
-    }
+    };
 
 
     this.getPlayerByName = function(name) {
 
-        var result = null;
-        this.players.map(function(player) {
+        return this.players.forEach(function(player) {
             if (player.name == name) {
-                result = player;
+                return player;
             }
-        });
-        return result;
-    }
+        }) || null;
+
+    };
 
 
 
@@ -237,7 +246,7 @@ function Game() {
             }
         }
 
-    }
+    };
 
     /**
      * validate attack cards: same number and defender has at least the number of attacking cards
