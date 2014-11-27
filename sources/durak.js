@@ -4,15 +4,14 @@
 
 
 /**
- *  basic Durak configuration
+ *  basic configs
  */
 var DurakConfig = (function() {
     var props = {
         'USER_STATUS_ATTACKER': 'attacker',
         'USER_STATUS_DEFENDER': 'defender',
-        'USER_STATUS_HOLD': 'hold',
-        'MAX_BOARD_CARDS_ATTACK': 6,
-        'MAX_BOARD_CARDS_ATTACK_BEFORE_FIRST_BITA': 5
+        'USER_STATUS_HOLD': 'hold'
+
     };
 
     var cardPriority = {2:1,3:2,4:3,5:4,6:5,7:6,8:7,9:8,10:9,'J':10,'Q':11,'K':12,'A':13};
@@ -161,7 +160,7 @@ function Game() {
     this.init = function() {
         var game = this;
         this.players.forEach(function(player) {
-            game.package.draft(DurakConfig.get('MAX_BOARD_CARDS_ATTACK'),player);
+            game.package.draft(6,player);
         });
 
         game.kozar = game.package.selectKozar();
@@ -247,7 +246,7 @@ function Game() {
             }
         }
 
-    }
+    };
 
     /**
      * validate attack cards: same number and defender has at least the number of attacking cards
