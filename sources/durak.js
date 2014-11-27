@@ -4,14 +4,15 @@
 
 
 /**
- *  basic configs
+ *  basic Durak configuration
  */
 var DurakConfig = (function() {
     var props = {
         'USER_STATUS_ATTACKER': 'attacker',
         'USER_STATUS_DEFENDER': 'defender',
-        'USER_STATUS_HOLD': 'hold'
-
+        'USER_STATUS_HOLD': 'hold',
+        'MAX_BOARD_CARDS_ATTACK': 6,
+        'MAX_BOARD_CARDS_ATTACK_BEFORE_FIRST_BITA': 5
     };
 
     var cardPriority = {2:1,3:2,4:3,5:4,6:5,7:6,8:7,9:8,10:9,'J':10,'Q':11,'K':12,'A':13};
@@ -71,6 +72,7 @@ function Package(lowest_card) {
 
        this.shuffle();
     };
+
 
     this.shuffle = function() {
         if (!this.is_shuffled) {
@@ -133,6 +135,7 @@ function Game() {
     this.defender = null;
     this.kozar = null;
     this.board = [];
+    this.bita = [];
 
     /**
      * add player to players list, if name exists throw error
@@ -151,10 +154,14 @@ function Game() {
     };
 
 
+    /**
+     * let's set a game. well, it means that we need to shuffle package, give cards to players,
+     *
+     */
     this.init = function() {
         var game = this;
         this.players.forEach(function(player) {
-            game.package.draft(6,player);
+            game.package.draft(DurakConfig.get('MAX_BOARD_CARDS_ATTACK'),player);
         });
 
         game.kozar = game.package.selectKozar();
@@ -173,6 +180,7 @@ function Game() {
         }
     };
 
+
     this.getPlayerByName = function(name) {
 
         return this.players.forEach(function(player) {
@@ -185,28 +193,110 @@ function Game() {
 
 
 
-    this.attack = function(cardAttack) {
-        var game = this;
-        var playerAttack = this.getPlayerByName(attackerName);
-        var aCard=null;
+    /**
+     * attacker attacks defender with 1 or more cards (can be equal in number)
+     * @param cardsAttack
+     */
+    this.attack = function (cardsAttack) {
 
-        var i = 0;
-        playerAttack.cards.forEach(function(card){
-           if (card.number == cardAttack.number && card.shape == cardAttack.shape ){
-               aCard = playerAttack.cards.splice(i,1)[0];
-               return;
-           }
-           i++;
-        });
+        if (this.validateAttackCards(cardsAttack)) {
 
-        game.board.cardsAttack.push(aCard);
+            var game = this;
+            var playerAttack = this.attacker;
+
+            cardsAttack.forEach(function (cardAttack) {
+
+                var aCard = null;
+                var i = 0;
+
+                playerAttack.cards.forEach(function (card) {
+                    if (card.number == cardAttack.number && card.shape == cardAttack.shape) {
+                        aCard = playerAttack.cards.splice(i, 1)[0];
+                        return;
+                    }
+                    i++;
+                });
+
+                if (aCard != null) {
+                    game.board.cardsAttack.push(aCard);
+                }
+            });
+        }
+        else throw 'cannot attack with these cards';
     }
 
+    /**
+     * get max cards a player can attack with. not more than 6 unless bita is empty and then it's 5. max defender cards
+     * taken in count before all
+     * @returns {*}
+     */
+    this.getMaxCardsToAttack = function() {
 
+        if (this.bita.length == 0) {
+            if (this.defender.cards.length < DurakConfig.get('MAX_BOARD_CARDS_ATTACK_BEFORE_FIRST_BITA')) {
+                 return this.defender.cards.length;
+            }else {
+                return DurakConfig.get('MAX_BOARD_CARDS_ATTACK_BEFORE_FIRST_BITA');
+            }
+        } else {
 
+            if (this.defender.cards.length < DurakConfig.get('MAX_BOARD_CARDS_ATTACK')) {
+                return this.defender.cards.length;
+            }else {
+                return DurakConfig.get('MAX_BOARD_CARDS_ATTACK');
+            }
+        }
 
+    }
+
+    /**
+     * validate attack cards: same number and defender has at least the number of attacking cards
+     * if board not empty, attacker cannot attack with cards that weren't played
+     * @param cardsAttack
+     * @returns {boolean}
+     */
+    this.validateAttackCards = function(cardsAttack) {
+
+        var game = this;
+        if (cardsAttack.length > this.getMaxCardsToAttack())
+            return false;
+
+        if (cardsAttack.length == 1)
+            return true;
+
+        // no attack cards in board
+        if (game.board.cardsAttack.length == 0) {
+            var isEqual = true;
+            var j = 1;
+            for (i = 0; i <= cardsAttack.length; i++) {
+                if (cardsAttack[j] != 'undefined' && cardsAttack[i].number != cardsAttack[j]) {
+                    isEqual = false;
+                    break;
+                }
+                j++;
+            }
+            return isEqual;
+        }else {
+
+           var isExistsOnBoard = true;
+           var allCardsPlayed = game.board.cardsAttack.concat(game.board.cardsDefense);
+           cardsAttack.forEach(function(cardAttack){
+               allCardsPlayed.forEach(function(cardPlayed){
+                  if (cardPlayed.number != cardAttack.number) {
+                      isExistsOnBoard = false;
+                  }
+               });
+           });
+
+           return isExistsOnBoard;
+        }
+    }
 }
 
+
+/***************************************
+ *            TEST ZONE !              *
+ ***************************************/
 
 
 function test() {
