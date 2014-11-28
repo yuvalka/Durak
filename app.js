@@ -6,13 +6,18 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
 var routes = require('./routes/index');
-var users = require('./routes/users');
 var durak = require('./sources/durak');
 
 // uncomment when using db
 //var db = require('./sources/db')('mongodb://localhost:27017/durak');
 
 var app = express();
+
+// Socket.IO
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
+
+var ioHandler = require('./sources/events')(io);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -44,7 +49,6 @@ if (app.get('env') === 'development') {
 });*/
 
 app.use('/', routes);
-app.use('/users', users);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -77,5 +81,8 @@ app.use(function(err, req, res, next) {
     });
 });
 
+http.listen(3000, function() {
+   console.log('Listening on 3000');
+});
 
 module.exports = app;

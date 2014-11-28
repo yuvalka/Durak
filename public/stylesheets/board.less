@@ -1,0 +1,18 @@
+@import (reference) "mixins";
+
+.own-hand {
+  position: absolute;
+  bottom: -80px;
+  left: 50%;
+  margin-left: -124px;
+  .card {
+    cursor: pointer !important;
+    top: 0;
+    position: relative;
+    transition: top 200ms ease;
+  }
+  .card:hover {
+    top: -10px;
+    .box-shadow(0, 0, 10px, 0, #fff)
+  }
+}

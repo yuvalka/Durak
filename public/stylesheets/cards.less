@@ -1,0 +1,42 @@
+@import (reference) "mixins";
+
+.card {
+  .user-select-none();
+  &, & * {cursor: default};
+
+  display: inline-block;
+  width: 120px;
+  height: 160px;
+  border: 1px solid #666;
+  .linear-gradient(#fff, #ddd);
+  .border-radius(4px);
+  .box-shadow(1px, 1px, 1px, 0, rgba(0, 0, 0, 0.75));
+
+  .card-num {
+    pointer-events: none;
+    position: relative;
+    left: -24px;
+    top: -6px;
+    font-size: 2.3em;
+  }
+
+  &:before {
+    position: relative;
+    display: inline-block;
+    top: -5px;
+    right: -73px;
+    width: 30px;
+    height: 60px;
+    font-size: 3em;
+  }
+
+  &.hearts, &.diamonds { color: red; }
+  &.spades, &.clubs { color: black; }
+
+  &.hearts:before { content: '\2764'; }
+  &.diamonds:before { content: '\2666'; }
+  &.clubs:before { content: '\2663'; }
+  &.spades:before { content: '\2660'; }
+
+
+}

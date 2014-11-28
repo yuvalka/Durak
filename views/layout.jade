@@ -1,7 +1,27 @@
 doctype html
 html
   head
-    title= title
+    title=site.title
     link(rel='stylesheet', href='/stylesheets/style.css')
+    link(rel='stylesheet', href='/stylesheets/cards.css')
+    link(rel='stylesheet', href='/stylesheets/board.css')
   body
     block content
+
+    footer
+      block footer
+
+    script(type='text/javascript', src='//code.jquery.com/jquery-2.1.0.min.js')
+    script(type='text/javascript', src='/socket.io/socket.io.js')
+    script
+      | var socket = io();
+      | if (!jQuery) {
+      |   var scr = document.createElement('script');
+      |   var bod = document.querySelector('body');
+      |   scr.setAttribute('type', 'text/javascript');
+      |   scr.setAttribute('src', '/javascripts/libs/jquery-2.1.1.min.js');
+      |   bod.appendElement(scr);
+      | }
+
+    script(type='text/javascript', src='/javascripts/libs/jquery.transit.min.js')
+    script(type='text/javascript', src='/javascripts/cards.style.js')

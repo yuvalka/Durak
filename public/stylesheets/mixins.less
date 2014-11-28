@@ -1,0 +1,31 @@
+.linear-gradient(@from, @to, @start : 0%, @stop : 100%) {
+  background: @from; /* Old browsers */
+  background: -moz-linear-gradient(top, @from @start, @to @stop); /* FF3.6+ */
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(@start,@from), color-stop(@stop,@to)); /* Chrome,Safari4+ */
+  background: -webkit-linear-gradient(top, @from @start,@to @stop); /* Chrome10+,Safari5.1+ */
+  background: -o-linear-gradient(top, @from @start,@to @stop); /* Opera 11.10+ */
+  background: -ms-linear-gradient(top, @from @start,@to @stop); /* IE10+ */
+  background: linear-gradient(to bottom, @from @start,@to @stop); /* W3C */
+  filter: progid:DXImageTransform.Microsoft.gradient( startColorstr=~"@from", endColorstr=~"@from",GradientType=0 ); /* IE6-9 */
+}
+
+.border-radius(@params) {
+  -webkit-border-radius: @params;
+     -moz-border-radius: @params;
+      -ms-border-radius: @params;
+       -o-border-radius: @params;
+          border-radius: @params;
+}
+
+.box-shadow(@x, @y, @distance, @spread, @color) {
+  -webkit-box-shadow: @x @y @distance @spread @color;
+     -moz-box-shadow: @x @y @distance @spread @color;
+          box-shadow: @x @y @distance @spread @color;
+}
+
+.user-select-none() {
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+}
