@@ -222,7 +222,7 @@ function Game() {
             });
         }
         else throw 'cannot attack with these cards';
-    }
+    };
 
     /**
      * get max cards a player can attack with. not more than 6 unless bita is empty and then it's 5. max defender cards
@@ -234,14 +234,14 @@ function Game() {
         if (this.bita.length == 0) {
             if (this.defender.cards.length < DurakConfig.get('MAX_BOARD_CARDS_ATTACK_BEFORE_FIRST_BITA')) {
                  return this.defender.cards.length;
-            }else {
+            } else {
                 return DurakConfig.get('MAX_BOARD_CARDS_ATTACK_BEFORE_FIRST_BITA');
             }
         } else {
 
             if (this.defender.cards.length < DurakConfig.get('MAX_BOARD_CARDS_ATTACK')) {
                 return this.defender.cards.length;
-            }else {
+            } else {
                 return DurakConfig.get('MAX_BOARD_CARDS_ATTACK');
             }
         }
