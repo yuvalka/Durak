@@ -2,16 +2,13 @@
  * Created by yuval on 11/7/14.
  */
 
-
 /**
  *  basic configs
  */
 var DurakConfig = (function() {
     var props = {
-        'USER_STATUS_ATTACKER': 'attacker',
-        'USER_STATUS_DEFENDER': 'defender',
-        'USER_STATUS_HOLD': 'hold'
-
+        'LOWEST_CARD' : 9,
+        'CARDS_PER_PLAYER' : 4
     };
 
     var cardPriority = {2:1,3:2,4:3,5:4,6:5,7:6,8:7,9:8,10:9,'J':10,'Q':11,'K':12,'A':13};
@@ -25,15 +22,15 @@ var DurakConfig = (function() {
 
 /**
  * presents specific card for a game
- * @param number
+ * @param rank
  * @param shape
  * @param priority
  * @constructor
  */
-function Card(number,shape) {
+function Card(rank,shape,holder) {
     this.shape = shape;
-    this.number = number;
-    this.holder = null;
+    this.rank = rank;
+    this.holder = holder;
 }
 
 /**
@@ -41,13 +38,12 @@ function Card(number,shape) {
  * @param lowest_card
  * @constructor
  */
-function Package(lowest_card) {
+function Package() {
     this.is_shuffled = false;
     this.possible_cards= [] ;
 
-    if (lowest_card === 'undefined') {
-        lowest_card = 6;
-    }
+    lowest_card = DurakConfig.get('LOWEST_CARD');
+
 
     for (var card_num = lowest_card; card_num < 11; card_num++) {
         this.possible_cards.push(card_num);
@@ -58,18 +54,18 @@ function Package(lowest_card) {
     this.cards = [];
 
     this.init = function() {
-       if (this.cards.length != 0 ){
-           return;
-       }
+        if (this.cards.length != 0 ){
+            return;
+        }
 
-       for (var i in this.possible_cards) {
+        for (var i in this.possible_cards) {
 
-           for (var j in this.shapes) {
-               this.cards.push(new Card(this.possible_cards[i],this.shapes[j]));
-           }
-       }
+            for (var j in this.shapes) {
+                this.cards.push(new Card(this.possible_cards[i],this.shapes[j],null));
+            }
+        }
 
-       this.shuffle();
+        this.shuffle();
     };
 
 
@@ -160,7 +156,7 @@ function Game() {
     this.init = function() {
         var game = this;
         this.players.forEach(function(player) {
-            game.package.draft(6,player);
+            game.package.draft(DurakConfig.get('CARDS_PER_PLAYER'),player);
         });
 
         game.kozar = game.package.selectKozar();
@@ -182,18 +178,20 @@ function Game() {
 
     this.getPlayerByName = function(name) {
 
-        return this.players.forEach(function(player) {
+        var playerFound = null;
+        this.players.forEach(function(player) {
             if (player.name == name) {
-                return player;
+                playerFound =  player;
             }
-        }) || null;
+        });
 
+        return playerFound;
     };
 
 
 
     /**
-     * attacker attacks defender with 1 or more cards (can be equal in number)
+     * attacker attacks defender with 1 or more cards (can be equal in rank)
      * @param cardsAttack
      */
     this.attack = function (cardsAttack) {
@@ -213,7 +211,7 @@ function Game() {
                 var i = 0;
 
                 playerAttack.cards.forEach(function (card) { // extra validation that attacking cards belong to attacker
-                    if (card.number == cardAttack.number && card.shape == cardAttack.shape) {
+                    if (card.rank == cardAttack.rank && card.shape == cardAttack.shape) {
                         aCard = playerAttack.cards.splice(i, 1)[0];
                         return;
                     }
@@ -237,23 +235,41 @@ function Game() {
 
         if (this.bita.length == 0) {
             if (this.defender.cards.length < DurakConfig.get('MAX_BOARD_CARDS_ATTACK_BEFORE_FIRST_BITA')) {
-                 return this.defender.cards.length;
-            } else {
+                return this.defender.cards.length;
+            }else {
                 return DurakConfig.get('MAX_BOARD_CARDS_ATTACK_BEFORE_FIRST_BITA');
             }
         } else {
 
             if (this.defender.cards.length < DurakConfig.get('MAX_BOARD_CARDS_ATTACK')) {
                 return this.defender.cards.length;
-            } else {
+            }else {
                 return DurakConfig.get('MAX_BOARD_CARDS_ATTACK');
             }
         }
 
     };
 
+    this.checkCardsBelongToPlayer = function(cards,player) {
+        var foundNone = false;
+        cards.forEach(function (card) {
+            var found = false;
+            player.cards.forEach(function(cardPlayer){
+                if (card.rank == cardPlayer.rank && card.shape == cardPlayer.shape) {
+                    found = true;
+                }
+            });
+            if (!found) {
+                foundNone = true;
+            }
+        });
+
+        return !foundNone ? true : false;
+
+    }
+
     /**
-     * validate attack cards: same number and defender has at least the number of attacking cards
+     * validate attack cards: same rank and defender has at least the rank of attacking cards
      * if board not empty, attacker cannot attack with cards that weren't played
      * @param cardsAttack
      * @returns {boolean|string}
@@ -263,65 +279,115 @@ function Game() {
         var game = this;
         var error = null;
 
-        // check that all attacking cards belong to attacker
-        cardsAttack.forEach(function (cardAttack) {
-           var found = false;
-           game.attacker.cards.forEach(function(cardAttacker){
-               if (cardAttack.number == cardAttacker.number && cardAttack.shape == cardAttacker.shape) {
-                   found = true;
-               }
-           });
-           if (!found) {
-               error = 'one or more cards not found for attacker!';
-           }
-        });
-
-        // check that attacking cards don't exceed limit
-        if (!error && cardsAttack.length > this.getMaxCardsToAttack()) {
-            error = "attacking cards exceeded limit " + this.getMaxCardsToAttack();
+        if (!this.checkCardsBelongToPlayer(cardsAttack,game.attacker)){
+            error = 'one or more cards not found for attacker!';
         }
 
-        if (error) return error; //TODO think of validator class..
-
-        // 1 cards it's ok
-        if (cardsAttack.length == 1)
-            return true;
-
+        if (error)
+            return error;
 
         // no attack cards in board
         if (game.board.cardsAttack.length == 0) {
             var attackNumber = null;
             var attackShape  = null;
-            cardsAttack.forEach(function(cardAttack){
-                if (!attackNumber && !attackShape) {
-                    attackNumber = cardAttack.number;
-                    attackShape = cardAttack.shape;
-                } else {
-                    if (cardAttack.number != attackNumber) {
-                        error = 'attacking cards not equal in number';
-                    }
 
-                    if (cardAttack.shape == attackShape) {
-                        error = 'attacking cards has same shape';
+            // check that attacking cards don't exceed limit
+            if (cardsAttack.length > this.getMaxCardsToAttack()) {
+                error = "attacking cards exceeded limit " + this.getMaxCardsToAttack();
+            } else if (cardsAttack.length == 1) {
+                return true;
+            } else { // check all attacking cards are equal in rank and not equal in shape
+                cardsAttack.forEach(function(cardAttack){
+                    if (!attackNumber && !attackShape) {
+                        attackNumber = cardAttack.rank;
+                        attackShape = cardAttack.shape;
+                    } else {
+                        if (cardAttack.rank != attackNumber) {
+                            error = 'attacking cards not equal in rank';
+                        }
+
+                        if (cardAttack.shape == attackShape) {
+                            error = 'attacking cards has same shape';
+                        }
                     }
-                }
-            });
+                });
+            }
 
         }else { // if we're here it means it's re-attacking
 
-           var allCardsPlayed = game.board.cardsAttack.concat(game.board.cardsDefense);
-           cardsAttack.forEach(function(cardAttack){
-               allCardsPlayed.forEach(function(cardPlayed){
-                  if (cardPlayed.number != cardAttack.number) {
-                      error = "card doesn't exist in board";
-                  }
-               });
-           });
+            // first check we don't exceed limit
+            if ( (cardsAttack.length + game.board.cardsAttack.length) > this.getMaxCardsToAttack()) {
+                error = "attacking cards exceeded limit " + this.getMaxCardsToAttack();
+            } else {
+                // check that attacking cards exist in board
+                var allCardsPlayed = game.board.cardsAttack.concat(game.board.cardsDefense);
+
+                cardsAttack.forEach(function(cardAttack){
+                    allCardsPlayed.forEach(function(cardPlayed){
+                        if (cardPlayed.rank != cardAttack.rank) {
+                            error = "card doesn't exist in board";
+                        }
+                    });
+                });
+            }
         }
 
         return error ? error : true;
     }
+
+    this.defense = function(dCards,position,onlyShowCard) {
+
+        var game = this;
+        var error = null;
+
+        if (!game.board.cardsDefense.length) {
+            error = 'no cards to dendend';
+        }
+
+        else if (!this.checkCardsBelongToPlayer(dCards,game.defender)){
+            error = 'one or more cards not found for defender!';
+        }
+
+        if (error) throw error;
+
+        // defender try to shift attack..need to validate, change holders of cards and attack with defender
+        if (game.board.cardsDefense.length == 0 && (!position || position == -1)) {
+            var foundSameRank = true;
+            dCards.forEach(function(dCard){
+                game.board.cardsAttack.forEach(function(aCard){
+                    if (dCard.rank != aCard.rank) {
+                        foundSameRank = false;
+                    }
+                });
+            });
+
+            if (foundSameRank) {
+                // we change attacker, defender, add defend card to attacking cards in board;
+                alert('change attack');
+            }
+        }
+    }
+
+    this.test = function() {
+        var game = this;
+        this.package.cards = [];
+        testCards.package.forEach(function(packageCard){
+            game.package.cards.push(new Card(packageCard.rank,packageCard.shape,null));
+        });
+
+        testCards.players.forEach(function(testPlayer){
+            var gamePlayer = game.getPlayerByName(testPlayer.name);
+            gamePlayer.cards = [];
+            testPlayer.cards.forEach(function(playerCard){
+                gamePlayer.cards.push(new Card(playerCard.rank,playerCard.shape,testPlayer.name));
+            });
+        });
+
+
+    }
+
 }
+
 
 
 /***************************************
@@ -331,15 +397,17 @@ function Game() {
 
 function test() {
 
-   game = new Game();
-   game.package =  new Package(6);
-   game.package.init();
-   game.addPlayer(new Player('yuval'));
-   game.addPlayer(new Player('keren'));
-   game.addPlayer(new Player('alon'));
-   game.addPlayer(new Player('tamar'));
-   game.init();
-   console.log(game.getPlayerByName('yuval').cards);
+    game = new Game();
+    game.package =  new Package(6);
+    game.package.init();
+    game.addPlayer(new Player('yuval'));
+    game.addPlayer(new Player('keren'));
+    game.addPlayer(new Player('alon'));
+    game.addPlayer(new Player('tamar'));
+    game.init();
+    game.test();
+    console.log(game.getPlayerByName('yuval'));
+
 
 }
 
