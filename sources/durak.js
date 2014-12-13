@@ -7,8 +7,10 @@
  */
 var DurakConfig = (function() {
     var props = {
-        'LOWEST_CARD' : 9,
-        'CARDS_PER_PLAYER' : 4
+        'LOWEST_CARD' : 6,
+        'CARDS_PER_PLAYER' : 4,
+        'END_ROUND_BITA' : 'bita',
+        'END_ROUND_LOST' : 'lost'
     };
 
     var cardPriority = {2:1,3:2,4:3,5:4,6:5,7:6,8:7,9:8,10:9,'J':10,'Q':11,'K':12,'A':13};
@@ -31,6 +33,7 @@ function Card(rank,shape,holder) {
     this.shape = shape;
     this.rank = rank;
     this.holder = holder;
+
 }
 
 /**
@@ -113,6 +116,17 @@ function Package() {
 function Player(name) {
     this.name = name;
     this.cards = [];
+
+    this.omitCard = function(card){
+        var pos = 0;
+        var player = this;
+        this.cards.forEach(function(pCard) {
+            if (card.rank === pCard.rank && card.shape === pCard.shape) {
+                player.cards.splice(pos,1);
+            }
+            pos++;
+        });
+    }
 }
 
 
@@ -165,24 +179,18 @@ function Game() {
         game.defender = this.players[1];
     };
 
-
-    this.findAndUpdatePlayerKey = function(name, params) {
-        var player = this.getPlayerByName(name);
-        for (var key in params) {
-            if (player.hasOwnProperty(key)) {
-                player[key] = params[key];
-            }
-        }
-    };
-
-
-    this.getPlayerByName = function(name) {
+    this.getPlayerByName = function(name,getPosition) {
 
         var playerFound = null;
+        var i = 0;
         this.players.forEach(function(player) {
             if (player.name == name) {
-                playerFound =  player;
+                if (!getPosition)
+                    playerFound =  player;
+                else
+                    playerFound = {"position": i, "player": player};
             }
+            i++;
         });
 
         return playerFound;
@@ -315,19 +323,26 @@ function Game() {
 
         }else { // if we're here it means it's re-attacking
 
+            // check defender has enough cards to defend with
+            if (game.defender.cards.length < cardsAttack.length) {
+                error = "defender has less cards than the attacking cards";
+            }
             // first check we don't exceed limit
-            if ( (cardsAttack.length + game.board.cardsAttack.length) > this.getMaxCardsToAttack()) {
+            else if ( (cardsAttack.length + game.board.cardsAttack.length) > this.getMaxCardsToAttack()) {
                 error = "attacking cards exceeded limit " + this.getMaxCardsToAttack();
             } else {
                 // check that attacking cards exist in board
                 var allCardsPlayed = game.board.cardsAttack.concat(game.board.cardsDefense);
 
                 cardsAttack.forEach(function(cardAttack){
+                    var found = false;
                     allCardsPlayed.forEach(function(cardPlayed){
-                        if (cardPlayed.rank != cardAttack.rank) {
-                            error = "card doesn't exist in board";
+                        if (cardPlayed.rank === cardAttack.rank) {
+                            found = true;
                         }
                     });
+                    if (!found)
+                        error = "card doesn't exist in board";
                 });
             }
         }
@@ -335,23 +350,29 @@ function Game() {
         return error ? error : true;
     }
 
+
     this.defense = function(dCards,position,onlyShowCard) {
 
         var game = this;
         var error = null;
 
-        if (!game.board.cardsDefense.length) {
-            error = 'no cards to dendend';
+        if (!game.board.cardsAttack.length) {
+            error = 'no attacking cards';
         }
 
         else if (!this.checkCardsBelongToPlayer(dCards,game.defender)){
             error = 'one or more cards not found for defender!';
+        }else if (onlyShowCard) {
+            if (dCards[0].shape != game.kozar.shape){
+                error = 'cannot reveal  non trump card';
+            }
         }
 
         if (error) throw error;
 
-        // defender try to shift attack..need to validate, change holders of cards and attack with defender
-        if (game.board.cardsDefense.length == 0 && (!position || position == -1)) {
+        // defender try to shift attack..validation is needed, change holders of cards and attack with defender
+        if (game.board.cardsDefense.length === 0 && position === -1) {
+
             var foundSameRank = true;
             dCards.forEach(function(dCard){
                 game.board.cardsAttack.forEach(function(aCard){
@@ -363,16 +384,118 @@ function Game() {
 
             if (foundSameRank) {
                 // we change attacker, defender, add defend card to attacking cards in board;
-                alert('change attack');
+                if (!onlyShowCard) {
+                    dCards.forEach(function(dCard){
+                        game.board.cardsAttack.push(dCard);
+                        game.defender.omitCard(dCard);
+                    });
+                }
+
+                game.board.cardsAttack.forEach(function(cardAttack){
+                    cardAttack.holder = game.defender.name;
+                });
+
+                game.attacker = game.defender;
+                game.defender = game.playerToRightOf(game.defender);
             }
+        }else if(position >= 0 && dCards.length == 1 ) {
+            aCard = game.board.cardsAttack[position];
+
+            if (!game.isDefenseCardWins(aCard,dCards[0]))
+                throw 'attacking card is ranked higher';
+
+            game.board.cardsDefense.push(dCards[0]);
+            game.defender.omitCard(dCards[0]);
+
         }
     }
 
-    this.test = function() {
+    this.playerToRightOf = function (player) {
+        var game = this;
+        for (i=0; i< game.players.length; i++) {
+            if (game.players[i].name === player.name ) {
+                if (typeof game.players[i+1] != 'undefined') {
+                    return (game.players[i+1]);
+                }else{
+                    return (game.players[0]);
+                }
+            }
+        }
+        return false;
+    }
+
+    this.endRound = function(result) {
+
+        var game = this;
+
+        if (result === DurakConfig.get('END_ROUND_BITA')) {
+            //all board goes to bita package
+            this.board.cardsDefense.concat(this.board.cardsAttack).forEach(function(bCard){
+                game.bita.push(bCard);
+            });
+
+            game.board.cardsAttack = [];
+            game.board.cardsDefense = [];
+
+        }else { // defender takes all cards..!
+            this.board.cardsDefense.concat(this.board.cardsAttack).forEach(function(bCard){
+                game.defender.cards.push(bCard);
+            });
+
+        }
+        // DRAFT CARDS
+
+        // first player to draft cards will be the attacker
+        var j = game.getPlayerByName(this.attacker.name,true).position;
+        for (i=0 ; i< this.players.length ; i++){
+            var player = this.players[j];
+            if (player.name != this.defender.name) {
+                this.package.draft(DurakConfig.get('CARDS_PER_PLAYER') - player.cards.length,player);
+            }
+            if (j === this.players.length){
+                j = 0; // start from the beginning
+            }
+        }
+        // last player to draft is the defender
+        this.package.draft(DurakConfig.get('CARDS_PER_PLAYER') - this.defender.cards.length,this.defender);
+
+        // CHANGE ATTACKER/DEFENDER
+        if (result == DurakConfig.get('END_ROUND_BITA')){
+            this.attacker = this.defender;
+            this.defender = this.playerToRightOf(this.defender);
+        }else{
+            this.attacker = this.playerToRightOf(this.defender);
+            this.defender = this.playerToRightOf(this.attacker);
+        }
+
+    }
+
+    this.isDefenseCardWins = function (aCard, dCard) {
+        // defense is not Kozar => attack must be non-kozar , attack is kozar ==> defense must be kozar as well
+        if ( dCard.shape === aCard.shape ){
+            aPriority = DurakConfig.cardPriority(aCard.rank);
+            dPriority = DurakConfig.cardPriority(dCard.rank);
+            if (dPriority > aPriority)
+                return true;
+        } else {  // defense must be a kozar
+            if (dCard.shape === this.kozar.shape ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // test test.js case, override package and players cards
+    this.initTest = function() {
+
         var game = this;
         this.package.cards = [];
         testCards.package.forEach(function(packageCard){
             game.package.cards.push(new Card(packageCard.rank,packageCard.shape,null));
+            if (packageCard.kozar) {
+                game.kozar = new Card(packageCard.rank,packageCard.shape,null);
+            }
         });
 
         testCards.players.forEach(function(testPlayer){
@@ -396,19 +519,22 @@ function Game() {
 
 
 function test() {
-
     game = new Game();
     game.package =  new Package(6);
     game.package.init();
     game.addPlayer(new Player('yuval'));
     game.addPlayer(new Player('keren'));
     game.addPlayer(new Player('alon'));
-    game.addPlayer(new Player('tamar'));
     game.init();
-    game.test();
-    console.log(game.getPlayerByName('yuval'));
-
-
+    game.initTest();
+    game.attack([ new Card('10','heart','yuval')]);
+    game.defense([new Card('10','diamond','keren')],-1,true);
+    game.defense([new Card('10', "club",'alon')],-1);
+    game.defense([new Card('J','heart','yuval')],0);
+    game.defense([new Card('Q','club','yuval')],1);
+    game.attack([new Card('J','spade','alon')]);
+    game.defense([new Card('Q','diamond','yuval')],2);
+    game.endRound(DurakConfig.get('END_ROUND_BITA'));
 }
 
 
